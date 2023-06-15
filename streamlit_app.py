@@ -41,6 +41,10 @@ barrios = ['Algirós', 'Benicalap', 'Benimaclet', 'Camins al Grau', 'Campanar', 
 
 barrios = []
 barrios_json = get_barrios()
+
+# Ordenar los registros por el campo 'nombre'
+barrios_json = sorted(barrios_json, key=lambda x: x['fields']['nombre'])
+
 for barrio in barrios_json:
     nombre = barrio["fields"]["nombre"]
     barrios.append(nombre)
