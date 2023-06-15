@@ -3,6 +3,10 @@ import requests
 import folium
 from folium.plugins import MarkerCluster
 from streamlit_folium import folium_static
+from PIL import Image
+import os
+import math
+
 
 def get_barrios():
     url = "https://valencia.opendatasoft.com/api/records/1.0/search/?dataset=barris-barrios&q=&rows=-1"
@@ -24,6 +28,34 @@ def get_contenedores(filtro):
     data = response.json()
     return data["records"]
 
+def calculate_center_zoom(shape_barrio):
+    coords_barrio = shape_barrio["coordinates"][0]
+
+    latitudes = [coord[1] for coord in coords_barrio]
+    longitudes = [coord[0] for coord in coords_barrio]
+
+    min_lat = min(latitudes)
+    max_lat = max(latitudes)
+    min_lon = min(longitudes)
+    max_lon = max(longitudes)
+
+    center_lat = (min_lat + max_lat) / 2
+    center_lon = (min_lon + max_lon) / 2
+
+    zoom = 15  # Nivel de zoom inicial
+
+    lat_extent = max_lat - min_lat
+    lon_extent = max_lon - min_lon
+
+    if lat_extent != 0 and lon_extent != 0:
+        max_zoom = 18  # Zoom máximo permitido (ajusta según tus necesidades)
+        width_pixels = 800  # Ancho del mapa en píxeles (ajusta según tus necesidades)
+        deg_per_pixel = (lon_extent / width_pixels)  # Grados de longitud por píxel
+        zoom = math.floor(math.log((360 * math.cos(math.radians(center_lat))) / deg_per_pixel, 2))
+        zoom = min(max_zoom, zoom)
+
+    return (center_lat, center_lon), zoom - 2
+
 diccionario_reciclaje = {
     "Todos": "red",
     "Envases Ligeros": "orange",
@@ -33,7 +65,19 @@ diccionario_reciclaje = {
     "VIDRIO": "green"
 }
 
+# Get the absolute path of the current file
+current_path = os.path.dirname(os.path.abspath(__file__))
+
+# Open the image files
+img_reciclaVLC = Image.open(os.path.join(current_path, 'images', 'ReciclaVLC.png'))
+img_reciclaVLC_app1 = Image.open(os.path.join(current_path, 'images', 'ReciclaVLC-Localiza.png'))
+img_reciclaVLC_app2 = Image.open(os.path.join(current_path, 'images', 'ReciclaVLC-Identifica.png'))
+
+# Display the image using Streamlit's image function
+st.image(img_reciclaVLC)
+
 st.title("Recicla Valencia: Cuida tu ciudad, separa tu basura")
+
 
 """
 ## ¡Bienvenido a Recicla Valencia!
@@ -58,6 +102,8 @@ En Valencia, contamos con una amplia red de puntos de recogida selectiva y conte
 Utiliza nuestra herramienta interactiva para encontrar los contenedores más cercanos a tu barrio. Selecciona tu barrio en el menú desplegable y podrás visualizar en el mapa los contenedores específicos. ¡Recuerda seguir las indicaciones y depositar los residuos en el contenedor correcto!
 
 """
+
+st.image(img_reciclaVLC_app1, width=64)
 
 # Lista de tipos de residuos
 tipos_residuos = list(diccionario_reciclaje.keys())
@@ -90,7 +136,12 @@ indice_barrio = barrios.index(barrio_seleccionado)
 shape_barrio = shapes[indice_barrio]
 
 # Mostrar mapa de Valencia
-valencia_map = folium.Map(location=[39.46975, -0.37739], zoom_start=12)
+
+# Calcular la ubicación central y el nivel de zoom óptimos
+center, zoom = calculate_center_zoom(shape_barrio)
+
+# Crear el mapa centrado en el barrio con el nivel de zoom óptimo
+valencia_map = folium.Map(location=center, zoom_start=zoom)
 
 # Añadir un marcador en el barrio seleccionado
 #folium.Marker(location=[39.46975, -0.37739], popup="Valencia").add_to(valencia_map)
@@ -146,6 +197,7 @@ Si tienes alguna duda sobre cómo reciclar un objeto específico, no dudes en ut
 
 # Formulario para subir una imagen
 st.subheader('Identificación de los Residuos')
+st.image(img_reciclaVLC_app2, width=64)
 imagen = st.file_uploader('Sube una imagen con fondo blanco del objeto a identificar', type=['jpg', 'jpeg', 'png'])
 if imagen is not None:
     # Mostrar la imagen si es válida
