@@ -1,5 +1,4 @@
 import streamlit as st
-import requestsimport streamlit as st
 import requests
 import folium
 from folium.plugins import MarkerCluster
