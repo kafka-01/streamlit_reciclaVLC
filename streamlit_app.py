@@ -4,7 +4,7 @@ import folium
 from streamlit_folium import folium_static
 
 def get_barrios():
-    url = "https://valencia.opendatasoft.com/api/records/1.0/search/?dataset=barris-barrios&q="
+    url = "https://valencia.opendatasoft.com/api/records/1.0/search/?dataset=barris-barrios&q=&rows=-1"
     response = requests.get(url)
     data = response.json()
     return data["records"]
