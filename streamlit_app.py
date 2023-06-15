@@ -1,6 +1,13 @@
 import streamlit as st
+import requests
 import folium
 from streamlit_folium import folium_static
+
+def get_barrios():
+    url = "https://valencia.opendatasoft.com/api/records/1.0/search/?dataset=barris-barrios&q="
+    response = requests.get(url)
+    data = response.json()
+    return data["records"]
 
 st.title("Recicla Valencia: Cuida tu ciudad, separa tu basura")
 
@@ -31,7 +38,14 @@ Utiliza nuestra herramienta interactiva para encontrar los contenedores más cer
 # Desplegable de los 88 barrios de Valencia
 # Lista de los 88 barrios de Valencia
 barrios = ['Algirós', 'Benicalap', 'Benimaclet', 'Camins al Grau', 'Campanar', 'Ciutat Vella', 'El Pla del Real', 'Extramurs', 'Jesús', 'L\'Olivereta', 'La Saïdia', 'Patraix', 'Poblats Marítims', 'Quatre Carreres', 'Rascanya', 'Alboraia', 'Albuixech', 'Alfara del Patriarca', 'Almàssera', 'Bonrepòs i Mirambell', 'Burjassot', 'Emperador', 'Godella', 'La Pobla de Farnals', 'Mislata', 'Moncada', 'Nàquera', 'Rocafort', 'Tavernes Blanques', 'Vinalesa', 'Xirivella', 'Xàtiva', 'Albal', 'Alcàsser', 'Aldaia', 'Alfafar', 'Benetússer', 'Beniparrell', 'Catarroja', 'Massanassa', 'Picanya', 'Picassent', 'Sedaví', 'Silla', 'Torrent', 'El Puig de Santa Maria', 'Faura', 'Massamagrell', 'Meliana', 'Museros', 'Puzol', 'Rafelbunyol', 'Sagunt', 'Albalat dels Sorells', 'Alboraya', 'Albuixech', 'Alfara del Patriarca', 'Almàssera', 'Benifairó de les Valls', 'Bonrepòs i Mirambell', 'Burjassot', 'Foios', 'Godella', 'La Pobla de Farnals', 'Massalfassar', 'Massamagrell', 'Meliana', 'Moncada', 'Museros', 'Nàquera', 'Pobla de Vallbona (la)', 'Puçol', 'Rafelbunyol', 'Rocafort', 'Sagunt', 'Tavernes Blanques', 'Tavernes de la Valldigna', 'València', 'Vinalesa']
-barrio_seleccionado = st.selectbox('Selecciona tu barrio', barrios)
+
+barrios = []
+barrios_json = get_barrios()
+for barrio in barrios_json:
+    nombre = barrio["fields"]["nombre"]
+    barrios.append(nombre)
+
+    barrio_seleccionado = st.selectbox('Selecciona tu barrio', barrios)
 
 # Mostrar mapa de Valencia
 
@@ -43,7 +57,6 @@ folium.Marker(location=[39.46975, -0.37739], popup="Valencia").add_to(valencia_m
 
 # Mostrar el mapa en Streamlit
 folium_static(valencia_map)
-
 
 st.markdown('''
 ## Identificar los residuos
