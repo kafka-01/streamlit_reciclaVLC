@@ -45,7 +45,7 @@ for barrio in barrios_json:
     nombre = barrio["fields"]["nombre"]
     barrios.append(nombre)
 
-    barrio_seleccionado = st.selectbox('Selecciona tu barrio', barrios)
+barrio_seleccionado = st.selectbox('Selecciona tu barrio', barrios)
 
 # Mostrar mapa de Valencia
 
