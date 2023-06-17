@@ -7,6 +7,16 @@ from PIL import Image
 import os
 import math
 
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras.models import Sequential, load_model
+from tensorflow.keras.layers import Activation, Dense, BatchNormalization, Conv2D, MaxPool2D, GlobalAveragePooling2D, Dropout
+import numpy as np
+
+from urllib.request import urlopen
+
+my_email = st.secrets['email']
+model_weight_file = st.secrets['model_url']
 
 def get_barrios():
     url = "https://valencia.opendatasoft.com/api/records/1.0/search/?dataset=barris-barrios&q=&rows=-1"
@@ -56,13 +66,35 @@ def calculate_center_zoom(shape_barrio):
 
     return (center_lat, center_lon), zoom - 2
 
+#labels = ['cardboard', 'glass', 'metal', 'paper', 'plastic', 'trash']
+labels = ['Papel / Carton', 'VIDRIO', 'Ecoparque', 'Papel / Carton', 'Envases Ligeros', 'Residuos Urbanos']
+
+def prediccion(image, model):
+    image = image.resize((224, 224))
+
+    imagen_preprocesada = tf.keras.applications.inception_resnet_v2.preprocess_input(np.array(image))
+
+    imagen_preprocesada = np.expand_dims(imagen_preprocesada, axis=0)
+
+    predicciones = model.predict(imagen_preprocesada)
+
+    indice_clase_predicha = np.argmax(predicciones[0])    
+    clase_predicha = labels[indice_clase_predicha]
+    prob = predicciones[0][indice_clase_predicha]
+    
+    
+    return clase_predicha, prob
+
 diccionario_reciclaje = {
     "Todos": "red",
     "Envases Ligeros": "orange",
     "Organico": "green",
     "Papel / Carton": "blue",
     "Residuos Urbanos": "gray",
-    "VIDRIO": "green"
+    "VIDRIO": "green",
+    "Pilas": "black",
+    "Aceite usado": "light brown",
+    "Ecoparque": "purple"
 }
 
 # Get the absolute path of the current file
@@ -72,6 +104,27 @@ current_path = os.path.dirname(os.path.abspath(__file__))
 img_reciclaVLC = Image.open(os.path.join(current_path, 'images', 'ReciclaVLC.png'))
 img_reciclaVLC_app1 = Image.open(os.path.join(current_path, 'images', 'ReciclaVLC-Localiza.png'))
 img_reciclaVLC_app2 = Image.open(os.path.join(current_path, 'images', 'ReciclaVLC-Identifica.png'))
+
+#Path of the model
+model_path = os.path.join(current_path, 'models', 'model.h5')
+
+if not os.path.exists('./models/model.h5'):
+    u = urlopen(model_weight_file)
+    data = u.read()
+    u.close()
+    with open(model_path, 'wb') as f:
+        f.write(data)
+
+# Variable de bandera para verificar si el modelo ya ha sido cargado
+modelo_cargado = False
+
+# Cargar el modelo en caché al principio de la ejecución
+@st.cache_resource 
+def cargar_modelo():
+    
+    model = load_model(model_path)
+    
+    return model
 
 # Display the image using Streamlit's image function
 st.image(img_reciclaVLC)
@@ -105,87 +158,89 @@ Utiliza nuestra herramienta interactiva para encontrar los contenedores más cer
 
 st.image(img_reciclaVLC_app1, width=64)
 
-# Lista de tipos de residuos
-tipos_residuos = list(diccionario_reciclaje.keys())
+with st.container():
 
-# Widget selectbox para seleccionar el tipo de residuo
-residuo_seleccionado = st.selectbox("Selecciona el tipo de residuo", tipos_residuos)
+    # Lista de tipos de residuos
+    tipos_residuos = list(diccionario_reciclaje.keys())
 
-# Desplegable de los 88 barrios de Valencia
-# Lista de los 88 barrios de Valencia
-#barrios = ['Algirós', 'Benicalap', 'Benimaclet', 'Camins al Grau', 'Campanar', 'Ciutat Vella', 'El Pla del Real', 'Extramurs', 'Jesús', 'L\'Olivereta', 'La Saïdia', 'Patraix', 'Poblats Marítims', 'Quatre Carreres', 'Rascanya', 'Alboraia', 'Albuixech', 'Alfara del Patriarca', 'Almàssera', 'Bonrepòs i Mirambell', 'Burjassot', 'Emperador', 'Godella', 'La Pobla de Farnals', 'Mislata', 'Moncada', 'Nàquera', 'Rocafort', 'Tavernes Blanques', 'Vinalesa', 'Xirivella', 'Xàtiva', 'Albal', 'Alcàsser', 'Aldaia', 'Alfafar', 'Benetússer', 'Beniparrell', 'Catarroja', 'Massanassa', 'Picanya', 'Picassent', 'Sedaví', 'Silla', 'Torrent', 'El Puig de Santa Maria', 'Faura', 'Massamagrell', 'Meliana', 'Museros', 'Puzol', 'Rafelbunyol', 'Sagunt', 'Albalat dels Sorells', 'Alboraya', 'Albuixech', 'Alfara del Patriarca', 'Almàssera', 'Benifairó de les Valls', 'Bonrepòs i Mirambell', 'Burjassot', 'Foios', 'Godella', 'La Pobla de Farnals', 'Massalfassar', 'Massamagrell', 'Meliana', 'Moncada', 'Museros', 'Nàquera', 'Pobla de Vallbona (la)', 'Puçol', 'Rafelbunyol', 'Rocafort', 'Sagunt', 'Tavernes Blanques', 'Tavernes de la Valldigna', 'València', 'Vinalesa']
+    # Widget selectbox para seleccionar el tipo de residuo
+    residuo_seleccionado = st.selectbox("Selecciona el tipo de residuo", tipos_residuos)
 
-barrios = []
-shapes = []
+    # Desplegable de los 88 barrios de Valencia
+    # Lista de los 88 barrios de Valencia
+    #barrios = ['Algirós', 'Benicalap', 'Benimaclet', 'Camins al Grau', 'Campanar', 'Ciutat Vella', 'El Pla del Real', 'Extramurs', 'Jesús', 'L\'Olivereta', 'La Saïdia', 'Patraix', 'Poblats Marítims', 'Quatre Carreres', 'Rascanya', 'Alboraia', 'Albuixech', 'Alfara del Patriarca', 'Almàssera', 'Bonrepòs i Mirambell', 'Burjassot', 'Emperador', 'Godella', 'La Pobla de Farnals', 'Mislata', 'Moncada', 'Nàquera', 'Rocafort', 'Tavernes Blanques', 'Vinalesa', 'Xirivella', 'Xàtiva', 'Albal', 'Alcàsser', 'Aldaia', 'Alfafar', 'Benetússer', 'Beniparrell', 'Catarroja', 'Massanassa', 'Picanya', 'Picassent', 'Sedaví', 'Silla', 'Torrent', 'El Puig de Santa Maria', 'Faura', 'Massamagrell', 'Meliana', 'Museros', 'Puzol', 'Rafelbunyol', 'Sagunt', 'Albalat dels Sorells', 'Alboraya', 'Albuixech', 'Alfara del Patriarca', 'Almàssera', 'Benifairó de les Valls', 'Bonrepòs i Mirambell', 'Burjassot', 'Foios', 'Godella', 'La Pobla de Farnals', 'Massalfassar', 'Massamagrell', 'Meliana', 'Moncada', 'Museros', 'Nàquera', 'Pobla de Vallbona (la)', 'Puçol', 'Rafelbunyol', 'Rocafort', 'Sagunt', 'Tavernes Blanques', 'Tavernes de la Valldigna', 'València', 'Vinalesa']
 
-barrios_json = get_barrios()
+    barrios = []
+    shapes = []
 
-# Ordenar los registros por el campo 'nombre'
-barrios_json = sorted(barrios_json, key=lambda x: x['fields']['nombre'])
+    barrios_json = get_barrios()
 
-for barrio in barrios_json:
-    nombre = barrio["fields"]["nombre"]
-    shape = barrio["fields"]["geo_shape"]
-    barrios.append(' '.join(word.capitalize() for word in nombre.split()))
-    shapes.append(shape)
+    # Ordenar los registros por el campo 'nombre'
+    barrios_json = sorted(barrios_json, key=lambda x: x['fields']['nombre'])
 
-barrio_seleccionado = st.selectbox('Selecciona tu barrio', barrios)
+    for barrio in barrios_json:
+        nombre = barrio["fields"]["nombre"]
+        shape = barrio["fields"]["geo_shape"]
+        barrios.append(' '.join(word.capitalize() for word in nombre.split()))
+        shapes.append(shape)
 
-# Obtener la forma del barrio seleccionado
-indice_barrio = barrios.index(barrio_seleccionado)
-shape_barrio = shapes[indice_barrio]
+    barrio_seleccionado = st.selectbox('Selecciona tu barrio', barrios)
 
-# Mostrar mapa de Valencia
+    # Obtener la forma del barrio seleccionado
+    indice_barrio = barrios.index(barrio_seleccionado)
+    shape_barrio = shapes[indice_barrio]
 
-# Calcular la ubicación central y el nivel de zoom óptimos
-center, zoom = calculate_center_zoom(shape_barrio)
+    # Mostrar mapa de Valencia
 
-# Crear el mapa centrado en el barrio con el nivel de zoom óptimo
-valencia_map = folium.Map(location=center, zoom_start=zoom)
+    # Calcular la ubicación central y el nivel de zoom óptimos
+    center, zoom = calculate_center_zoom(shape_barrio)
 
-# Añadir un marcador en el barrio seleccionado
-#folium.Marker(location=[39.46975, -0.37739], popup="Valencia").add_to(valencia_map)
+    # Crear el mapa centrado en el barrio con el nivel de zoom óptimo
+    valencia_map = folium.Map(location=center, zoom_start=zoom)
 
-# Añadir la forma del barrio seleccionado
-#folium.GeoJson(shape_barrio).add_to(valencia_map)
+    # Añadir un marcador en el barrio seleccionado
+    #folium.Marker(location=[39.46975, -0.37739], popup="Valencia").add_to(valencia_map)
 
-# Mostrar los contenedores
+    # Añadir la forma del barrio seleccionado
+    #folium.GeoJson(shape_barrio).add_to(valencia_map)
 
-contenedores = {}
+    # Mostrar los contenedores
 
-# Obtener contenedores por tipo en el barrio seleccionado
-contenedores_json = get_contenedores(shape_barrio)
-for c in contenedores_json:
-    tipo = c["fields"]["tipo_resid"]
-    coords = c["fields"]["geo_shape"]
-    
-    # Verificar si la clave existe en el diccionario
-    if tipo not in contenedores:
-        contenedores[tipo] = []
-    
-    # Agregar las coordenadas a la lista correspondiente
-    contenedores[tipo].append(coords)
+    contenedores = {}
 
-# Recorrer cada clave y agregar marcadores
-for tipo, coordenadas in contenedores.items():
-    
-    if (tipo==residuo_seleccionado or residuo_seleccionado == 'Todos'):
-        color = diccionario_reciclaje.get(tipo)  # Obtener el color asociado al tipo de residuo del diccionario
+    # Obtener contenedores por tipo en el barrio seleccionado
+    contenedores_json = get_contenedores(shape_barrio)
+    for c in contenedores_json:
+        tipo = c["fields"]["tipo_resid"]
+        coords = c["fields"]["geo_shape"]
 
-        for coords in coordenadas:
-            # Obtener las coordenadas del punto
-            lat = coords["coordinates"][1]
-            lon = coords["coordinates"][0]
+        # Verificar si la clave existe en el diccionario
+        if tipo not in contenedores:
+            contenedores[tipo] = []
 
-            # Crear un marcador con un icono compatible con Folium (por ejemplo, "leaf") y el color correspondiente
-            icon = folium.Icon(icon="leaf", color=color)
-            marker = folium.Marker(location=[lat, lon], popup=tipo, icon=icon)
+        # Agregar las coordenadas a la lista correspondiente
+        contenedores[tipo].append(coords)
 
-            # Agregar el marcador al mapa
-            valencia_map.add_child(marker)
+    # Recorrer cada clave y agregar marcadores
+    for tipo, coordenadas in contenedores.items():
 
-# Mostrar el mapa en Streamlit
-folium_static(valencia_map)
+        if (tipo==residuo_seleccionado or residuo_seleccionado == 'Todos'):
+            color = diccionario_reciclaje.get(tipo)  # Obtener el color asociado al tipo de residuo del diccionario
+
+            for coords in coordenadas:
+                # Obtener las coordenadas del punto
+                lat = coords["coordinates"][1]
+                lon = coords["coordinates"][0]
+
+                # Crear un marcador con un icono compatible con Folium (por ejemplo, "leaf") y el color correspondiente
+                icon = folium.Icon(icon="leaf", color=color)
+                marker = folium.Marker(location=[lat, lon], popup=tipo, icon=icon)
+
+                # Agregar el marcador al mapa
+                valencia_map.add_child(marker)
+
+    # Mostrar el mapa en Streamlit
+    folium_static(valencia_map)
 
 st.markdown('''
 ## Identificar los residuos
@@ -196,12 +251,19 @@ Si tienes alguna duda sobre cómo reciclar un objeto específico, no dudes en ut
 ''', unsafe_allow_html=True)
 
 # Formulario para subir una imagen
-st.subheader('Identificación de los Residuos')
+st.subheader('Identificación de los residuos')
 st.image(img_reciclaVLC_app2, width=64)
-imagen = st.file_uploader('Sube una imagen con fondo blanco del objeto a identificar', type=['jpg', 'jpeg', 'png'])
-if imagen is not None:
-    # Mostrar la imagen si es válida
-    st.image(imagen)
+with st.container():
+    # Llamar a la función para cargar el modelo
+    if not modelo_cargado:
+        modelo = cargar_modelo()
+        modelo_cargado = True
+    uploaded_file = st.file_uploader('Sube una imagen con fondo blanco del objeto a identificar', type=['jpg', 'jpeg', 'png'])
+    if uploaded_file is not None:
+        image = Image.open(uploaded_file)
+        #st.image(image, caption="Uploaded Image")
+        clase_predicha, prob = prediccion(image, modelo)
+        st.image(image, width = 250, caption=f'Clase predicha: {clase_predicha}, Probabilidad: {prob:.2f}')
 
 # Preparación de residuos
 """
