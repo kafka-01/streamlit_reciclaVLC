@@ -15,28 +15,131 @@ import numpy as np
 
 from urllib.request import urlopen
 
+# Get the absolute path of the current file
+current_path = os.path.dirname(os.path.abspath(__file__))
+
+# Open the image files
+img_reciclaVLC = Image.open(os.path.join(current_path, 'images', 'ReciclaVLC.png'))
+img_reciclaVLC_app1 = Image.open(os.path.join(current_path, 'images', 'ReciclaVLC-Localiza.png'))
+img_reciclaVLC_app2 = Image.open(os.path.join(current_path, 'images', 'ReciclaVLC-Identifica.png'))
+
+# IDENTIFICACIÓN DE RESIDUOS ============================================================================================
+
+# Variable de bandera para verificar si el modelo ha sido cargado
+modelo_cargado = False
+
+# Secreto
 my_email = st.secrets['email']
 model_weight_file = st.secrets['model_url']
+    
+#Descargar el modelo inicial
 
+model_path = os.path.join(current_path, 'models', 'model.h5')
+
+if not os.path.exists('./models/model.h5'):
+    u = urlopen(model_weight_file)
+    data = u.read()
+    u.close()
+    with open(model_path, 'wb') as f:
+        f.write(data)
+
+# Cargar el modelo en caché al principio de la ejecución
+@st.cache_resource 
+def cargar_modelo():
+    model = load_model(model_path)
+    return model
+
+#labels = ['cardboard', 'glass', 'metal', 'paper', 'plastic', 'trash']
+labels = ['Papel / Carton', 'VIDRIO', 'Ecoparque', 'Papel / Carton', 'Envases Ligeros', 'Residuos Urbanos']
+
+def prediccion(image, model):
+    image = image.resize((224, 224))
+
+    imagen_preprocesada = tf.keras.applications.inception_resnet_v2.preprocess_input(np.array(image))
+
+    imagen_preprocesada = np.expand_dims(imagen_preprocesada, axis=0)
+
+    predicciones = model.predict(imagen_preprocesada)
+
+    indice_clase_predicha = np.argmax(predicciones[0])    
+    clase_predicha = labels[indice_clase_predicha]
+    prob = predicciones[0][indice_clase_predicha]    
+
+    return clase_predicha, prob
+
+# LOCALIZACION DE CONTENEDORES =================================================================================
+
+# Variable de bandera para verificar si la lista de barrios ha sido cargada
+barrios_cargado = False
+
+# Variable de bandera para verificar si los contenedores de residuos solidos + vidrio del barrio ya han sido cargados
+contenedores1_cargado = None
+
+# Variable de bandera para verificar si los contenedores pilas, aceite y ecoparques moviles del barrio ya han sido cargados
+contenedores2_cargado = None
+
+@st.cache_data
 def get_barrios():
     url = "https://valencia.opendatasoft.com/api/records/1.0/search/?dataset=barris-barrios&q=&rows=-1"
     response = requests.get(url)
     data = response.json()
     return data["records"]
 
+@st.cache_data
 def get_contenedores(filtro):
     coordinates = filtro['coordinates'][0]  # Obtener la lista de coordenadas del polígono
-    
+
     # Formatear las coordenadas del polígono
     coordinates_str = '%2C+'.join([f'({coord[1]}%2C+{coord[0]})' for coord in coordinates])
-    
-    url = f"https://valencia.opendatasoft.com/api/records/1.0/search/?dataset=contenidors-residus-solids-contenidores-residuos-solidos&q=&rows=-1&geofilter.polygon=" + coordinates_str
-    response = requests.get(url)
-    
-    #st.markdown(url)
-    
+
+    url_residuos_solidos = f"https://valencia.opendatasoft.com/api/records/1.0/search/?dataset=contenidors-residus-solids-contenidores-residuos-solidos&q=&rows=-1&geofilter.polygon=" + coordinates_str
+    url_vidrio = f"https://valencia.opendatasoft.com/api/records/1.0/search/?dataset=contenidors-vidre-contenedores-vidrio&q=&rows=-1&geofilter.polygon=" + coordinates_str
+
+    response = requests.get(url_residuos_solidos)
     data = response.json()
-    return data["records"]
+    combined_results = data['records']
+
+    response = requests.get(url_vidrio)
+    data = response.json()
+    vidrio_records = data['records']
+    for record in vidrio_records:
+        record['fields']['tipo_resid'] = 'Vidrio'
+    combined_results += vidrio_records
+
+    return combined_results
+
+@st.cache_data
+def get_contenedores2(filtro):
+    coordinates = filtro['coordinates'][0]  # Obtener la lista de coordenadas del polígono
+
+    # Formatear las coordenadas del polígono
+    coordinates_str = '%2C+'.join([f'({coord[1]}%2C+{coord[0]})' for coord in coordinates])
+
+    url_pilas = f"https://valencia.opendatasoft.com/api/records/1.0/search/?dataset=localitzacio-contenidors-piles-localizacion-contenedores-pilas&q=&rows=-1&geofilter.polygon=" + coordinates_str
+    url_aceite = f"https://valencia.opendatasoft.com/api/records/1.0/search/?dataset=contenidors-oli-usat-contenedores-aceite-usado&q=&rows=-1&geofilter.polygon=" + coordinates_str
+    url_ecoparques_moviles = f"https://valencia.opendatasoft.com/api/records/1.0/search/?dataset=ecoparcs-mobils-ecoparques-moviles&q=&rows=-1&geofilter.polygon=" + coordinates_str
+
+    response = requests.get(url_pilas)
+    data = response.json()
+    combined_results = data['records']
+    for record in combined_results:
+        record['fields']['tipo_resid'] = 'Pilas'
+
+    response = requests.get(url_aceite)
+    data = response.json()
+    aceite_records = data['records']
+    for record in aceite_records:
+        record['fields']['tipo_resid'] = 'Aceite usado'
+    combined_results += aceite_records
+
+    response = requests.get(url_ecoparques_moviles)
+    data = response.json()
+    ecoparques_moviles_records = data['records']
+    for record in ecoparques_moviles_records:
+        record['fields']['tipo_resid'] = 'Ecoparque móvil'
+    combined_results += ecoparques_moviles_records
+
+    return combined_results
 
 def calculate_center_zoom(shape_barrio):
     coords_barrio = shape_barrio["coordinates"][0]
@@ -66,72 +169,28 @@ def calculate_center_zoom(shape_barrio):
 
     return (center_lat, center_lon), zoom - 2
 
-#labels = ['cardboard', 'glass', 'metal', 'paper', 'plastic', 'trash']
-labels = ['Papel / Carton', 'VIDRIO', 'Ecoparque', 'Papel / Carton', 'Envases Ligeros', 'Residuos Urbanos']
-
-def prediccion(image, model):
-    image = image.resize((224, 224))
-
-    imagen_preprocesada = tf.keras.applications.inception_resnet_v2.preprocess_input(np.array(image))
-
-    imagen_preprocesada = np.expand_dims(imagen_preprocesada, axis=0)
-
-    predicciones = model.predict(imagen_preprocesada)
-
-    indice_clase_predicha = np.argmax(predicciones[0])    
-    clase_predicha = labels[indice_clase_predicha]
-    prob = predicciones[0][indice_clase_predicha]
-    
-    
-    return clase_predicha, prob
-
-diccionario_reciclaje = {
-    "Todos": "red",
-    "Envases Ligeros": "orange",
-    "Organico": "green",
-    "Papel / Carton": "blue",
-    "Residuos Urbanos": "gray",
-    "VIDRIO": "green",
-    "Pilas": "black",
-    "Aceite usado": "light brown",
-    "Ecoparque": "purple"
+iconos_reciclaje = {
+    "Envases Ligeros": "icon-amarillo",
+    "Organico": "icon-marron",
+    "Papel / Carton": "icon-azul",
+    "Residuos Urbanos": "icon-gris",
+    "Vidrio": "icon-verde",
+    "Pilas": "icon-pilas",
+    "Aceite usado": "icon-aceite",
+    "Ecoparque móvil": "icon-rojo",
+    "Todos": ""
 }
 
-# Get the absolute path of the current file
-current_path = os.path.dirname(os.path.abspath(__file__))
+# PÁGINA ======================================================================================================
 
-# Open the image files
-img_reciclaVLC = Image.open(os.path.join(current_path, 'images', 'ReciclaVLC.png'))
-img_reciclaVLC_app1 = Image.open(os.path.join(current_path, 'images', 'ReciclaVLC-Localiza.png'))
-img_reciclaVLC_app2 = Image.open(os.path.join(current_path, 'images', 'ReciclaVLC-Identifica.png'))
 
-#Path of the model
-model_path = os.path.join(current_path, 'models', 'model.h5')
-
-if not os.path.exists('./models/model.h5'):
-    u = urlopen(model_weight_file)
-    data = u.read()
-    u.close()
-    with open(model_path, 'wb') as f:
-        f.write(data)
-
-# Variable de bandera para verificar si el modelo ya ha sido cargado
-modelo_cargado = False
-
-# Cargar el modelo en caché al principio de la ejecución
-@st.cache_resource 
-def cargar_modelo():
-    
-    model = load_model(model_path)
-    
-    return model
-
-# Display the image using Streamlit's image function
+# Logo
 st.image(img_reciclaVLC)
 
+# Título
 st.title("Recicla Valencia: Cuida tu ciudad, separa tu basura")
 
-
+# Introducción
 """
 ## ¡Bienvenido a Recicla Valencia!
 Recicla Valencia es una plataforma dedicada a promover el reciclaje y la separación adecuada de la basura en nuestra hermosa ciudad. Utilizamos la ciencia de datos para concienciar a los vecinos de Valencia sobre la importancia de estas prácticas para preservar el medio ambiente y construir un futuro sostenible.
@@ -155,92 +214,101 @@ En Valencia, contamos con una amplia red de puntos de recogida selectiva y conte
 Utiliza nuestra herramienta interactiva para encontrar los contenedores más cercanos a tu barrio. Selecciona tu barrio en el menú desplegable y podrás visualizar en el mapa los contenedores específicos. ¡Recuerda seguir las indicaciones y depositar los residuos en el contenedor correcto!
 
 """
-
+# Localización de residuos
 st.image(img_reciclaVLC_app1, width=64)
 
 with st.container():
+    if not barrios_cargado:
+        #Cargar los barrios y sus shapes
+        barrios = []
+        shapes = []
 
-    # Lista de tipos de residuos
-    tipos_residuos = list(diccionario_reciclaje.keys())
+        barrios_json = get_barrios()
 
-    # Widget selectbox para seleccionar el tipo de residuo
-    residuo_seleccionado = st.selectbox("Selecciona el tipo de residuo", tipos_residuos)
+        # Ordenar los registros por el campo 'nombre'
+        barrios_json = sorted(barrios_json, key=lambda x: x['fields']['nombre'])
 
-    # Desplegable de los 88 barrios de Valencia
-    # Lista de los 88 barrios de Valencia
-    #barrios = ['Algirós', 'Benicalap', 'Benimaclet', 'Camins al Grau', 'Campanar', 'Ciutat Vella', 'El Pla del Real', 'Extramurs', 'Jesús', 'L\'Olivereta', 'La Saïdia', 'Patraix', 'Poblats Marítims', 'Quatre Carreres', 'Rascanya', 'Alboraia', 'Albuixech', 'Alfara del Patriarca', 'Almàssera', 'Bonrepòs i Mirambell', 'Burjassot', 'Emperador', 'Godella', 'La Pobla de Farnals', 'Mislata', 'Moncada', 'Nàquera', 'Rocafort', 'Tavernes Blanques', 'Vinalesa', 'Xirivella', 'Xàtiva', 'Albal', 'Alcàsser', 'Aldaia', 'Alfafar', 'Benetússer', 'Beniparrell', 'Catarroja', 'Massanassa', 'Picanya', 'Picassent', 'Sedaví', 'Silla', 'Torrent', 'El Puig de Santa Maria', 'Faura', 'Massamagrell', 'Meliana', 'Museros', 'Puzol', 'Rafelbunyol', 'Sagunt', 'Albalat dels Sorells', 'Alboraya', 'Albuixech', 'Alfara del Patriarca', 'Almàssera', 'Benifairó de les Valls', 'Bonrepòs i Mirambell', 'Burjassot', 'Foios', 'Godella', 'La Pobla de Farnals', 'Massalfassar', 'Massamagrell', 'Meliana', 'Moncada', 'Museros', 'Nàquera', 'Pobla de Vallbona (la)', 'Puçol', 'Rafelbunyol', 'Rocafort', 'Sagunt', 'Tavernes Blanques', 'Tavernes de la Valldigna', 'València', 'Vinalesa']
+        for barrio in barrios_json:
+            nombre = barrio["fields"]["nombre"]
+            shape = barrio["fields"]["geo_shape"]
+            barrios.append(' '.join(word.capitalize() for word in nombre.split()))
+            shapes.append(shape)
 
-    barrios = []
-    shapes = []
-
-    barrios_json = get_barrios()
-
-    # Ordenar los registros por el campo 'nombre'
-    barrios_json = sorted(barrios_json, key=lambda x: x['fields']['nombre'])
-
-    for barrio in barrios_json:
-        nombre = barrio["fields"]["nombre"]
-        shape = barrio["fields"]["geo_shape"]
-        barrios.append(' '.join(word.capitalize() for word in nombre.split()))
-        shapes.append(shape)
+        barrios_cargado = True
 
     barrio_seleccionado = st.selectbox('Selecciona tu barrio', barrios)
-
+    
     # Obtener la forma del barrio seleccionado
     indice_barrio = barrios.index(barrio_seleccionado)
     shape_barrio = shapes[indice_barrio]
 
-    # Mostrar mapa de Valencia
+    # Lista de tipos de residuos
+    tipos_contenedor = ['Residuos sólidos', 'Aceite usado', 'Pilas', 'Ecoparque móvil']
 
-    # Calcular la ubicación central y el nivel de zoom óptimos
-    center, zoom = calculate_center_zoom(shape_barrio)
+    # Widget selectbox para seleccionar el tipo de residuo
+    contenedor_seleccionado = st.selectbox("Selecciona el tipo de contenedor", tipos_contenedor)
 
-    # Crear el mapa centrado en el barrio con el nivel de zoom óptimo
-    valencia_map = folium.Map(location=center, zoom_start=zoom)
+    if (contenedor_seleccionado == 'Residuos sólidos'):
+        # Lista de tipos de residuos
+        tipos_residuos = ['Todos', 'Envases Ligeros', 'Organico', 'Papel / Carton', 'Residuos Urbanos', 'Vidrio']
 
-    # Añadir un marcador en el barrio seleccionado
-    #folium.Marker(location=[39.46975, -0.37739], popup="Valencia").add_to(valencia_map)
+        # Widget selectbox para seleccionar el tipo de residuo
+        residuo_seleccionado = st.selectbox("Selecciona el tipo de residuo", tipos_residuos)
+    
+    with st.spinner("Loading..."):
 
-    # Añadir la forma del barrio seleccionado
-    #folium.GeoJson(shape_barrio).add_to(valencia_map)
+        contenedores = {}
 
-    # Mostrar los contenedores
+        if (contenedor_seleccionado == 'Residuos sólidos'):
+            if contenedores1_cargado != barrio_seleccionado:
+                contenedores1_json = get_contenedores(shape_barrio)
+                contenedor1_cargado = barrio_seleccionado
+            contenedores_json = contenedores1_json
+            seleccion = residuo_seleccionado
+        else:
+            if contenedores2_cargado != barrio_seleccionado:
+                contenedores2_json = get_contenedores2(shape_barrio)
+                contenedor2_cargado = barrio_seleccionado
+            contenedores_json = contenedores2_json
+            seleccion = contenedor_seleccionado
 
-    contenedores = {}
+        for c in contenedores_json:
+            tipo = c["fields"]["tipo_resid"]
+            coords = c["fields"]["geo_shape"]
 
-    # Obtener contenedores por tipo en el barrio seleccionado
-    contenedores_json = get_contenedores(shape_barrio)
-    for c in contenedores_json:
-        tipo = c["fields"]["tipo_resid"]
-        coords = c["fields"]["geo_shape"]
+            # Verificar si la clave existe en el diccionario
+            if tipo not in contenedores:
+                contenedores[tipo] = []
 
-        # Verificar si la clave existe en el diccionario
-        if tipo not in contenedores:
-            contenedores[tipo] = []
+            # Agregar las coordenadas a la lista correspondiente
+            contenedores[tipo].append(coords)
+        
+        # Mostrar mapa de Valencia
 
-        # Agregar las coordenadas a la lista correspondiente
-        contenedores[tipo].append(coords)
+        # Calcular la ubicación central y el nivel de zoom óptimos
+        center, zoom = calculate_center_zoom(shape_barrio)
 
-    # Recorrer cada clave y agregar marcadores
-    for tipo, coordenadas in contenedores.items():
+        # Crear el mapa centrado en el barrio con el nivel de zoom óptimo
+        valencia_map = folium.Map(location=center, zoom_start=zoom)
 
-        if (tipo==residuo_seleccionado or residuo_seleccionado == 'Todos'):
-            color = diccionario_reciclaje.get(tipo)  # Obtener el color asociado al tipo de residuo del diccionario
+        # Recorrer cada clave y agregar marcadores
+        for tipo, coordenadas in contenedores.items():
+            if (tipo == seleccion or seleccion == 'Todos'):                
+                for coords in coordenadas:
+                    # Obtener las coordenadas del punto
+                    lat = coords["coordinates"][1]
+                    lon = coords["coordinates"][0]
 
-            for coords in coordenadas:
-                # Obtener las coordenadas del punto
-                lat = coords["coordinates"][1]
-                lon = coords["coordinates"][0]
+                    # Crear un marcador con un icono compatible con Folium (por ejemplo, "leaf") y el color correspondiente
+                    icon = folium.CustomIcon(icon_image=os.path.join(current_path, 'images', iconos_reciclaje[tipo]+'.png'), 
+                                             icon_size=(42, 36))
+                    marker = folium.Marker(location=[lat, lon], popup=tipo, icon=icon)
 
-                # Crear un marcador con un icono compatible con Folium (por ejemplo, "leaf") y el color correspondiente
-                icon = folium.Icon(icon="leaf", color=color)
-                marker = folium.Marker(location=[lat, lon], popup=tipo, icon=icon)
+                    # Agregar el marcador al mapa
+                    valencia_map.add_child(marker)
 
-                # Agregar el marcador al mapa
-                valencia_map.add_child(marker)
-
-    # Mostrar el mapa en Streamlit
-    folium_static(valencia_map)
+        # Mostrar el mapa en Streamlit
+        folium_static(valencia_map)
 
 st.markdown('''
 ## Identificar los residuos
@@ -250,20 +318,22 @@ Aprende a reconocer y clasificar los distintos tipos de residuos comunes, como o
 Si tienes alguna duda sobre cómo reciclar un objeto específico, no dudes en utilizar nuestra herramienta de Identificación de Residuos. Sube una foto con fondo blanco del objeto en cuestión, y te ayudaremos a determinar en qué contenedor debe ser depositado.<sup><a name="back" href="#disclaimer">[1]</a></sup>
 ''', unsafe_allow_html=True)
 
-# Formulario para subir una imagen
 st.subheader('Identificación de los residuos')
+
+# Identificación de residuos
 st.image(img_reciclaVLC_app2, width=64)
-with st.container():
-    # Llamar a la función para cargar el modelo
-    if not modelo_cargado:
-        modelo = cargar_modelo()
-        modelo_cargado = True
+
+with st.container():    
     uploaded_file = st.file_uploader('Sube una imagen con fondo blanco del objeto a identificar', type=['jpg', 'jpeg', 'png'])
+
     if uploaded_file is not None:
-        image = Image.open(uploaded_file)
-        #st.image(image, caption="Uploaded Image")
-        clase_predicha, prob = prediccion(image, modelo)
-        st.image(image, width = 250, caption=f'Clase predicha: {clase_predicha}, Probabilidad: {prob:.2f}')
+        with st.spinner("Loading..."):
+            image = Image.open(uploaded_file)
+            if not modelo_cargado:
+                modelo = cargar_modelo()
+                modelo_cargado = True
+            clase_predicha, prob = prediccion(image, modelo)
+            st.image(image, width = 250, caption=f'Clase predicha: {clase_predicha}, Probabilidad: {prob:.2f}')
 
 # Preparación de residuos
 """
