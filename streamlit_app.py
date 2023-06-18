@@ -69,9 +69,10 @@ def cargar_modelo():
     return model
 
 #labels = ['cardboard', 'glass', 'metal', 'paper', 'plastic', 'trash']
-labels = ['Papel / Carton', 'VIDRIO', 'Ecoparque', 'Papel / Carton', 'Envases Ligeros', 'Residuos Urbanos']
+labels = ['Papel / Carton', 'Vidrio', 'Ecoparque móvil', 'Papel / Carton', 'Envases Ligeros', 'Residuos Urbanos']
 
 def prediccion(image, model):
+    
     image = image.resize((224, 224))
 
     imagen_preprocesada = tf.keras.applications.inception_resnet_v2.preprocess_input(np.array(image))
@@ -362,6 +363,21 @@ with st.container():
     if uploaded_file is not None:
         with st.spinner("Loading..."):
             image = Image.open(uploaded_file)
+            
+            # Rotar la imagen si es necesario
+            if hasattr(image, '_getexif') and image._getexif() is not None:
+                exif = image._getexif()
+                orientation = exif.get(0x0112)
+                if orientation is not None:
+                    if orientation == 1:
+                        pass  # No se requiere rotación
+                    elif orientation == 3:
+                        image = image.rotate(180, expand=True)
+                    elif orientation == 6:
+                        image = image.rotate(270, expand=True)
+                    elif orientation == 8:
+                        image = image.rotate(90, expand=True)
+            
             if not modelo_cargado:
                 modelo = cargar_modelo()
                 modelo_cargado = True
@@ -374,8 +390,8 @@ with st.container():
             # Mostrar la imagen y la clasificación
             col1, col2 = st.columns([2, 4])  # Dividir el espacio en dos columnas
             with col1:
-                #st.image(image, width=250, caption=f'Clase predicha: {clase_predicha}, Probabilidad: {prob:.2f}')
-                st.image(image)
+                st.image(image, caption=f'{clase_predicha} ({prob:.2f})')
+                #st.image(image)
 
             # Mostrar el icono y el texto de seguridad
             with col2:
