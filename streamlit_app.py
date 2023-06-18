@@ -23,6 +23,25 @@ img_reciclaVLC = Image.open(os.path.join(current_path, 'images', 'ReciclaVLC.png
 img_reciclaVLC_app1 = Image.open(os.path.join(current_path, 'images', 'ReciclaVLC-Localiza.png'))
 img_reciclaVLC_app2 = Image.open(os.path.join(current_path, 'images', 'ReciclaVLC-Identifica.png'))
 
+def obtener_icono(label):
+    iconos_reciclaje = {
+        "Envases Ligeros": "icon-amarillo",
+        "Organico": "icon-marron",
+        "Papel / Carton": "icon-azul",
+        "Residuos Urbanos": "icon-gris",
+        "Vidrio": "icon-verde",
+        "Pilas": "icon-pilas",
+        "Aceite usado": "icon-aceite",
+        "Ecoparque móvil": "icon-rojo",
+        "Todos": ""
+    }
+    
+    if label in iconos_reciclaje:
+        icon_path = os.path.join(current_path, 'images', iconos_reciclaje[label] + '.png')
+        return icon_path
+    else:
+        return ""
+
 # IDENTIFICACIÓN DE RESIDUOS ============================================================================================
 
 # Variable de bandera para verificar si el modelo ha sido cargado
@@ -169,17 +188,16 @@ def calculate_center_zoom(shape_barrio):
 
     return (center_lat, center_lon), zoom - 2
 
-iconos_reciclaje = {
-    "Envases Ligeros": "icon-amarillo",
-    "Organico": "icon-marron",
-    "Papel / Carton": "icon-azul",
-    "Residuos Urbanos": "icon-gris",
-    "Vidrio": "icon-verde",
-    "Pilas": "icon-pilas",
-    "Aceite usado": "icon-aceite",
-    "Ecoparque móvil": "icon-rojo",
-    "Todos": ""
-}
+def obtener_texto_seguridad(prob):
+    if prob < 0.3:
+        return "Hmm... parece que la clasificación no está del todo clara. Puede que necesitemos más datos o un ajuste en el modelo. Sigamos trabajando para mejorar."
+    elif prob < 0.6:
+        return "La clasificación es relativamente segura, aunque aún existe un margen de error. Sigamos refinando nuestros conocimientos en el reciclaje para ofrecer resultados más precisos."
+    elif prob < 0.9:
+        return "¡Excelente! La clasificación es bastante segura, lo cual es alentador. Nuestra dedicación al reciclaje y la conciencia ecológica están dando frutos."
+    else:
+        return "¡Increíble! La clasificación es muy segura. Nuestro compromiso con el reciclaje y la protección del medio ambiente está dando resultados notables. Sigamos cuidando de nuestro planeta."
+
 
 # PÁGINA ======================================================================================================
 
@@ -209,6 +227,22 @@ Comenzar a reciclar en casa es más fácil de lo que piensas. Te guiamos paso a 
 
 ## Reciclaje en la comunidad
 En Valencia, contamos con una amplia red de puntos de recogida selectiva y contenedores específicos para cada tipo de residuo. Te proporcionamos información detallada sobre los diferentes contenedores y qué residuos se deben depositar en cada uno. Además, te orientamos sobre los programas y servicios municipales relacionados con el reciclaje, como la recogida puerta a puerta y la gestión de residuos peligrosos.
+
+### Recogida selectiva y contenedores
+
+En Valencia, el sistema de separación de la basura se organiza en varios contenedores de diferentes colores. A continuación, te proporcionamos una guía básica sobre cómo separar la basura en los contenedores de Valencia:
+
+- Contenedor Amarillo: Residuos de envases y embalajes de plástico, latas y briks. Aquí debes depositar elementos como botellas de plástico, latas de refresco, envases de yogur, bolsas de plástico, cartones de leche, entre otros.
+- Contenedor Azul: Residuos de papel y cartón. Puedes depositar periódicos, revistas, folletos, cajas de cartón, papel de envolver, etc. Es importante que pliegues o desmontes las cajas para aprovechar mejor el espacio.
+- Contenedor Verde: Residuos de vidrio. Puedes separar botellas de vidrio, frascos, tarros y otros envases de vidrio. No introduzcas tapas de metal o plástico, ya que deben ser depositadas en el contenedor correspondiente.
+- Contenedor Marrón: Residuos orgánicos o restos de comida. Puedes depositar cáscaras de frutas y verduras, restos de comida, posos de café, restos de poda, entre otros materiales orgánicos. No introduzcas plásticos ni otros materiales no biodegradables.
+- Contenedor Gris: Residuos no reciclables. Aquí debes depositar elementos como pañales, compresas, papel higiénico, colillas, chicles, etc. Trata de reducir al mínimo la cantidad de residuos que se depositan en este contenedor.
+
+### Otros contenedores
+En nuestra comunidad, contamos con contenedores especiales para la recolección de aceite usado y pilas. El aceite de cocina usado debe ser depositado en botellas de plástico cerradas en el contenedor correspondiente, donde será reciclado para producir biodiesel. Las pilas, que contienen sustancias tóxicas, deben ser colocadas en los contenedores específicos para su correcta gestión y reciclaje, evitando la contaminación del suelo y del agua. Estos contenedores especiales son una parte importante de nuestro sistema de reciclaje y nos ayudan a proteger el medio ambiente. Participa en su uso adecuado para mantener nuestra comunidad limpia y sostenible.
+
+### Ecoparques móviles
+Además de los contenedores mencionados, en Valencia también existen los ecoparques o puntos limpios, donde se pueden depositar residuos especiales como pilas, baterías, electrodomésticos, muebles, aceites usados, etc. Estos residuos deben ser llevados personalmente a los ecoparques para su correcto tratamiento y reciclaje.
 
 ### Localización de los contenedores cercanos
 Utiliza nuestra herramienta interactiva para encontrar los contenedores más cercanos a tu barrio. Selecciona tu barrio en el menú desplegable y podrás visualizar en el mapa los contenedores específicos. ¡Recuerda seguir las indicaciones y depositar los residuos en el contenedor correcto!
@@ -300,8 +334,7 @@ with st.container():
                     lon = coords["coordinates"][0]
 
                     # Crear un marcador con un icono compatible con Folium (por ejemplo, "leaf") y el color correspondiente
-                    icon = folium.CustomIcon(icon_image=os.path.join(current_path, 'images', iconos_reciclaje[tipo]+'.png'), 
-                                             icon_size=(42, 36))
+                    icon = folium.CustomIcon(icon_image=obtener_icono(tipo), icon_size=(42, 36))
                     marker = folium.Marker(location=[lat, lon], popup=tipo, icon=icon)
 
                     # Agregar el marcador al mapa
@@ -333,7 +366,21 @@ with st.container():
                 modelo = cargar_modelo()
                 modelo_cargado = True
             clase_predicha, prob = prediccion(image, modelo)
-            st.image(image, width = 250, caption=f'Clase predicha: {clase_predicha}, Probabilidad: {prob:.2f}')
+            
+            # Obtener el icono y el texto de seguridad
+            icono = obtener_icono(clase_predicha)
+            texto_seguridad = obtener_texto_seguridad(prob)
+
+            # Mostrar la imagen y la clasificación
+            col1, col2 = st.columns([2, 4])  # Dividir el espacio en dos columnas
+            with col1:
+                #st.image(image, width=250, caption=f'Clase predicha: {clase_predicha}, Probabilidad: {prob:.2f}')
+                st.image(image)
+
+            # Mostrar el icono y el texto de seguridad
+            with col2:
+                st.image(Image.open(icono), width=50)  # Mostrar el icono como imagen
+                st.markdown(f"**{clase_predicha}**\n{texto_seguridad}")  # Mostrar el texto de seguridad con Markdown
 
 # Preparación de residuos
 """
