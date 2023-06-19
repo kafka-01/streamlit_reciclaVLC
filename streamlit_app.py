@@ -71,7 +71,40 @@ def cargar_modelo():
 #labels = ['cardboard', 'glass', 'metal', 'paper', 'plastic', 'trash']
 labels = ['Papel / Carton', 'Vidrio', 'Ecoparque móvil', 'Papel / Carton', 'Envases Ligeros', 'Residuos Urbanos']
 
+# Acondiciona la imagen para mostrar en la web y de paso prepararla para el modelo (preproc1)
+def preprocess_image(image):
+    # Rotar la imagen si es necesario
+    if hasattr(image, '_getexif') and image._getexif() is not None:
+        exif = image._getexif()
+        orientation = exif.get(0x0112)
+        if orientation is not None:
+            if orientation == 1:
+                pass  # No se requiere rotación
+            elif orientation == 3:
+                image = image.rotate(180, expand=True)
+            elif orientation == 6:
+                image = image.rotate(270, expand=True)
+            elif orientation == 8:
+                image = image.rotate(90, expand=True)
+
+    # Verificar si la imagen ya está en formato RGB
+    if image.mode != "RGB":
+        # Convertir la imagen a formato RGB y reemplazarla
+        image = image.convert("RGB")
+
+    # Escalar la imagen para que su lado más pequeño mida 224 píxeles
+    width, height = image.size
+    if width < height:
+        scaled_size = (224, int(224 * height / width))
+    else:
+        scaled_size = (int(224 * width / height), 224)
+    image = image.resize(scaled_size, Image.ANTIALIAS)
+
+    return image
+
 def prediccion(image, model):
+    
+    # Adaptar la imagen al modelo (preproc2)
     
     image = image.resize((224, 224))
 
@@ -364,19 +397,7 @@ with st.container():
         with st.spinner("Loading..."):
             image = Image.open(uploaded_file)
             
-            # Rotar la imagen si es necesario
-            if hasattr(image, '_getexif') and image._getexif() is not None:
-                exif = image._getexif()
-                orientation = exif.get(0x0112)
-                if orientation is not None:
-                    if orientation == 1:
-                        pass  # No se requiere rotación
-                    elif orientation == 3:
-                        image = image.rotate(180, expand=True)
-                    elif orientation == 6:
-                        image = image.rotate(270, expand=True)
-                    elif orientation == 8:
-                        image = image.rotate(90, expand=True)
+            image = preprocess_image(image)
             
             if not modelo_cargado:
                 modelo = cargar_modelo()
