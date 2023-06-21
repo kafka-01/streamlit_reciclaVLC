@@ -359,7 +359,7 @@ def locate_containers_app():
             # Add the coordinates to the corresponding list
             containers[container_type].append(coords)
             
-            counter += len(coords)
+            counter += 1
 
     valencia_map = generar_mapa(center, zoom, containers)
     folium_static(valencia_map)
