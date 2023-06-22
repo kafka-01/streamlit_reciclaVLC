@@ -54,7 +54,7 @@ my_email = st.secrets['email']
 model_weight_file = st.secrets['model_url']    
     
 # Load the model into cache at the beginning of execution
-@st.cache_resource
+@st.cache_resource(show_spinner = False)
 def cargar_modelo():    
     if not os.path.exists('./models/model.h5'):
         u = urlopen(model_weight_file)
@@ -134,8 +134,10 @@ def identify_waste_app():
         image = Image.open(uploaded_file)
         
         image = preprocess_image(image)
+
+        with st.spinner("Loading model for first time..."):
         
-        model = cargar_modelo()
+            model = cargar_modelo()
             
         with st.spinner("Predicting..."):
         
@@ -159,7 +161,7 @@ def identify_waste_app():
 
 # CONTAINER LOCATION =================================================================================
 
-@st.cache_data
+@st.cache_data(show_spinner = False)
 def get_neighborhoods():
     url = "https://valencia.opendatasoft.com/api/records/1.0/search/?dataset=barris-barrios&q=&rows=-1"
     response = requests.get(url)
@@ -182,7 +184,7 @@ def get_neighborhoods():
     neighborhoods_loaded = True
     return neighborhoods
 
-@st.cache_data
+@st.cache_data(show_spinner = False)
 def get_containers(neighborhood_shape):
     coordinates = neighborhood_shape['coordinates'][0]  # Get the list of coordinates of the polygon
 
@@ -205,7 +207,7 @@ def get_containers(neighborhood_shape):
     
     return combined_results
 
-@st.cache_data
+@st.cache_data(show_spinner = False)
 def get_containers2(neighborhood_shape):
     coordinates = neighborhood_shape['coordinates'][0]  # Get the list of coordinates of the polygon
 
@@ -238,7 +240,7 @@ def get_containers2(neighborhood_shape):
 
     return combined_results
 
-@st.cache_resource
+@st.cache_resource(show_spinner = False)
 def generar_mapa(center, zoom, containers):
     
     feature_group = folium.FeatureGroup(name="Markers")  # Create a FeatureGroup for markers        
@@ -320,45 +322,47 @@ def locate_containers_app():
     else:
 
         selected_waste = ''
-        
-    # Proccess
 
-    selected_neighborhood = neighborhoods[nh_index]['name']
-    nh_shape = neighborhoods[nh_index]['geo_shape']
+    with st.spinner("Refreshing Map..."):
+        
+        # Proccess
     
-    # Show map of Valencia
-
-    # Calculate the optimal central location and zoom level
-    center, zoom = calculate_center_zoom(nh_shape)
-
-    containers = {}        
-
-    if (selected_container == 'Residuos sólidos'):            
-        containers1_json = get_containers(nh_shape)
-        containers_json = containers1_json
-        selection = selected_waste
-    else:
-        containers2_json = get_containers2(nh_shape)
-        containers_json = containers2_json
-        selection = selected_container
+        selected_neighborhood = neighborhoods[nh_index]['name']
+        nh_shape = neighborhoods[nh_index]['geo_shape']
         
-    counter = 0
-
-    for c in containers_json:
-        container_type = c["fields"]["tipo_resid"]
-        if (container_type == selection or selection == 'Todos'):
-            coords = c["fields"]["geo_shape"]
-            # Check if the key exists in the dictionary
-            if container_type not in containers:
-                containers[container_type] = []
-
-            # Add the coordinates to the corresponding list
-            containers[container_type].append(coords)
+        # Show map of Valencia
+    
+        # Calculate the optimal central location and zoom level
+        center, zoom = calculate_center_zoom(nh_shape)
+    
+        containers = {}        
+    
+        if (selected_container == 'Residuos sólidos'):            
+            containers1_json = get_containers(nh_shape)
+            containers_json = containers1_json
+            selection = selected_waste
+        else:
+            containers2_json = get_containers2(nh_shape)
+            containers_json = containers2_json
+            selection = selected_container
             
-            counter += 1
-
-    valencia_map = generar_mapa(center, zoom, containers)
-    folium_static(valencia_map)
+        counter = 0
+    
+        for c in containers_json:
+            container_type = c["fields"]["tipo_resid"]
+            if (container_type == selection or selection == 'Todos'):
+                coords = c["fields"]["geo_shape"]
+                # Check if the key exists in the dictionary
+                if container_type not in containers:
+                    containers[container_type] = []
+    
+                # Add the coordinates to the corresponding list
+                containers[container_type].append(coords)
+                
+                counter += 1
+    
+        valencia_map = generar_mapa(center, zoom, containers)
+        folium_static(valencia_map)
     st.write(f"Elementos encontrados: {counter}")
 
 # PAGE ======================================================================================================    
