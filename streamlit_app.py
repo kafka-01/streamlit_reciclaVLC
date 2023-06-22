@@ -441,7 +441,15 @@ st.markdown(identify_text, unsafe_allow_html=True)
 
 # Identify waste
 with st.container():    
-    st.image(img_reciclaVLC_app2, width=64)
+    
+    supported_classes = set(labels)
+    # Crear una lista de anchos de columna
+    column_widths = [64] + [50] * 10
+    columns = st.columns(column_widths)    
+    columns[0].image(img_reciclaVLC_app2, width=64)
+    for i, c in enumerate(supported_classes):
+        columns[i+1].image(Image.open(get_icon(c)), width=50)
+    
     identify_waste_app()
 
 # Final block
