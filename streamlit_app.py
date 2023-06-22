@@ -34,6 +34,7 @@ def get_icon(label):
         "Pilas": "icon-pilas",
         "Aceite usado": "icon-aceite",
         "Ecoparque móvil": "icon-rojo",
+        "Ropa": "icon-ropa",
         "Todos": ""
     }
     
@@ -217,6 +218,7 @@ def get_containers2(neighborhood_shape):
     url_batteries = f"https://valencia.opendatasoft.com/api/records/1.0/search/?dataset=localitzacio-contenidors-piles-localizacion-contenedores-pilas&q=&rows=-1&geofilter.polygon=" + coordinates_str
     url_used_oil = f"https://valencia.opendatasoft.com/api/records/1.0/search/?dataset=contenidors-oli-usat-contenedores-aceite-usado&q=&rows=-1&geofilter.polygon=" + coordinates_str
     url_mobile_ecoparks = f"https://valencia.opendatasoft.com/api/records/1.0/search/?dataset=ecoparcs-mobils-ecoparques-moviles&q=&rows=-1&geofilter.polygon=" + coordinates_str
+    url_clothes = f"https://valencia.opendatasoft.com/api/records/1.0/search/?dataset=contenidors-de-roba-contenedores-de-ropa&q=&rows=-1&geofilter.polygon=" + coordinates_str
 
     response = requests.get(url_batteries)
     data = response.json()
@@ -237,6 +239,13 @@ def get_containers2(neighborhood_shape):
     for record in mobile_ecoparks_records:
         record['fields']['tipo_resid'] = 'Ecoparque móvil'
     combined_results += mobile_ecoparks_records
+
+    response = requests.get(url_clothes)
+    data = response.json()
+    clothes_records = data['records']
+    for record in clothes_records:
+        record['fields']['tipo_resid'] = 'Ropa'
+    combined_results += clothes_records
 
     return combined_results
 
@@ -306,7 +315,7 @@ def locate_containers_app():
     nh_shape = neighborhoods[nh_index]['geo_shape']
 
     # List of container types
-    container_types = ['Residuos sólidos', 'Aceite usado', 'Pilas', 'Ecoparque móvil']
+    container_types = ['Residuos sólidos', 'Aceite usado', 'Pilas', 'Ecoparque móvil', 'Ropa']
 
     # Widget selectbox to select the container type
     selected_container = st.selectbox("Selecciona el tipo de contenedor", container_types)
