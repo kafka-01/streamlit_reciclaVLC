@@ -161,7 +161,7 @@ def identify_waste_app():
 
 # CONTAINER LOCATION =================================================================================
 
-@st.cache_data(show_spinner = False)
+@st.cache_data(ttl = "1h", show_spinner = False)
 def get_neighborhoods():
     url = "https://valencia.opendatasoft.com/api/records/1.0/search/?dataset=barris-barrios&q=&rows=-1"
     response = requests.get(url)
@@ -184,7 +184,7 @@ def get_neighborhoods():
     neighborhoods_loaded = True
     return neighborhoods
 
-@st.cache_data(show_spinner = False)
+@st.cache_data(ttl = "1h", show_spinner = False)
 def get_containers(neighborhood_shape):
     coordinates = neighborhood_shape['coordinates'][0]  # Get the list of coordinates of the polygon
 
@@ -207,7 +207,7 @@ def get_containers(neighborhood_shape):
     
     return combined_results
 
-@st.cache_data(show_spinner = False)
+@st.cache_data(ttl = "1h", show_spinner = False)
 def get_containers2(neighborhood_shape):
     coordinates = neighborhood_shape['coordinates'][0]  # Get the list of coordinates of the polygon
 
@@ -363,7 +363,7 @@ def locate_containers_app():
     
         valencia_map = generar_mapa(center, zoom, containers)
         folium_static(valencia_map)
-    st.write(f"Elementos encontrados: {counter}")
+    st.write(f"Contenedores encontrados: {counter}")
 
 # PAGE ======================================================================================================    
 
