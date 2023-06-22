@@ -431,7 +431,7 @@ with st.container():
     
 # Identify waste
 identify_text = '''
-## Identificación los residuos
+## Identificación de los residuos
 
 Aprende a reconocer y clasificar los distintos tipos de residuos comunes, como orgánicos, papel y cartón, vidrio, plástico, metal, etc. Esto te ayudará a saber en qué contenedor depositar cada tipo de residuo.
 
