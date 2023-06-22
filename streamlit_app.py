@@ -183,7 +183,7 @@ def get_neighborhoods():
     return neighborhoods
 
 @st.cache_data
-def get_containers(selected_neighborhood, neighborhood_shape):
+def get_containers(neighborhood_shape):
     coordinates = neighborhood_shape['coordinates'][0]  # Get the list of coordinates of the polygon
 
     # Format the coordinates of the polygon
@@ -203,12 +203,10 @@ def get_containers(selected_neighborhood, neighborhood_shape):
         record['fields']['tipo_resid'] = 'Vidrio'
     combined_results += glass_records
     
-    containers1_loaded = selected_neighborhood
-
     return combined_results
 
 @st.cache_data
-def get_containers2(selected_neighborhood, neighborhood_shape):
+def get_containers2(neighborhood_shape):
     coordinates = neighborhood_shape['coordinates'][0]  # Get the list of coordinates of the polygon
 
     # Format the coordinates of the polygon
@@ -237,8 +235,6 @@ def get_containers2(selected_neighborhood, neighborhood_shape):
     for record in mobile_ecoparks_records:
         record['fields']['tipo_resid'] = 'Ecoparque móvil'
     combined_results += mobile_ecoparks_records
-    
-    containers2_loaded = selected_neighborhood
 
     return combined_results
 
@@ -338,11 +334,11 @@ def locate_containers_app():
     containers = {}        
 
     if (selected_container == 'Residuos sólidos'):            
-        containers1_json = get_containers(selected_neighborhood, nh_shape)
+        containers1_json = get_containers(nh_shape)
         containers_json = containers1_json
         selection = selected_waste
     else:
-        containers2_json = get_containers2(selected_neighborhood, nh_shape)
+        containers2_json = get_containers2(nh_shape)
         containers_json = containers2_json
         selection = selected_container
         
