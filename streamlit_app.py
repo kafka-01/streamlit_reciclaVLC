@@ -418,7 +418,7 @@ En nuestra comunidad, contamos con contenedores especiales para la recolección 
 ### Ecoparques móviles
 Además de los contenedores mencionados, en Valencia también existen los ecoparques o puntos limpios, donde se pueden depositar residuos especiales como pilas, baterías, electrodomésticos, muebles, aceites usados, etc. Estos residuos deben ser llevados personalmente a los ecoparques para su correcto tratamiento y reciclaje.
 
-### Localización de los contenedores cercanos
+## Localización de los contenedores cercanos
 Utiliza nuestra herramienta interactiva para encontrar los contenedores más cercanos a tu barrio. Selecciona tu barrio en el menú desplegable y podrás visualizar en el mapa los contenedores específicos. ¡Recuerda seguir las indicaciones y depositar los residuos en el contenedor correcto!
 """
 st.markdown(intro_text)
