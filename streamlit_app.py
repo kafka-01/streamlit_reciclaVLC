@@ -93,7 +93,7 @@ def preprocess_image(image):
         scaled_size = (224, int(224 * height / width))
     else:
         scaled_size = (int(224 * width / height), 224)
-    image = image.resize(scaled_size, Image.ANTIALIAS)
+    image = image.resize(scaled_size, 3)
 
     return image
 
