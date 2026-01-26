@@ -66,17 +66,16 @@ class CustomScaleLayer(tf.keras.layers.Layer):
         self.scale = scale
 
     def call(self, inputs):
-        # Si crees que ya escalas fuera, puedes dejarla neutra:
-        # return inputs
-
-        # O hacer lo lógico según el nombre:
+        # Si recibe varios tensores (lista/tupla), escálalos uno a uno
+        if isinstance(inputs, (list, tuple)):
+            return [x * self.scale for x in inputs]
+        # Si recibe un solo tensor
         return inputs * self.scale
 
     def get_config(self):
         config = super().get_config()
         config.update({"scale": self.scale})
         return config
-
     
 # Load the model into cache at the beginning of execution
 @st.cache_resource(show_spinner = False)
