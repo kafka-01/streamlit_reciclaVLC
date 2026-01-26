@@ -61,11 +61,21 @@ import tensorflow as tf
 
 @tf.keras.utils.register_keras_serializable(package="Custom")
 class CustomScaleLayer(tf.keras.layers.Layer):
+    def __init__(self, scale=1.0, **kwargs):
+        super().__init__(**kwargs)
+        self.scale = scale
+
     def call(self, inputs):
-        return inputs
+        # Si crees que ya escalas fuera, puedes dejarla neutra:
+        # return inputs
+
+        # O hacer lo lógico según el nombre:
+        return inputs * self.scale
 
     def get_config(self):
-        return super().get_config()
+        config = super().get_config()
+        config.update({"scale": self.scale})
+        return config
 
     
 # Load the model into cache at the beginning of execution
