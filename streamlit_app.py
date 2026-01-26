@@ -10,7 +10,6 @@ from streamlit_folium import folium_static
 
 import tensorflow as tf
 
-from custom_layers import CustomScaleLayer
 from tensorflow.keras.models import load_model
 
 import numpy as np
@@ -56,7 +55,18 @@ labels = ['Papel / Carton', 'Vidrio', 'Ecoparque móvil', 'Papel / Carton', 'Env
     
 # Secret
 my_email = st.secrets['email']
-model_weight_file = st.secrets['model_url']    
+model_weight_file = st.secrets['model_url']
+
+import tensorflow as tf
+
+@tf.keras.utils.register_keras_serializable(package="Custom")
+class CustomScaleLayer(tf.keras.layers.Layer):
+    def call(self, inputs):
+        return inputs
+
+    def get_config(self):
+        return super().get_config()
+
     
 # Load the model into cache at the beginning of execution
 @st.cache_resource(show_spinner = False)
@@ -67,8 +77,7 @@ def cargar_modelo():
         u.close()
         with open(model_path, 'wb') as f:
             f.write(data)
-    model = load_model(model_path,
-                       custom_objects={"CustomScaleLayer": CustomScaleLayer})
+    model = load_model(model_path})
     return model
 
 # Prepare the image for display on the web and preprocess it for the model (preproc1)
