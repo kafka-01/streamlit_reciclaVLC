@@ -50,7 +50,7 @@ def get_icon(label):
 
 # Classification labels
 #labels = ['cardboard', 'glass', 'metal', 'paper', 'plastic', 'trash']
-labels = ['Papel / Carton', 'Vidrio', 'Ecoparque móvil', 'Papel / Carton', 'Envases Ligeros', 'Residuos Urbanos']
+labels = ['Papel / Carton', 'Vidrio', 'Ecoparque móvil', 'Papel / Carton', 'Envases Ligeros', 'Resto']
     
 # Secret
 my_email = st.secrets['email']
