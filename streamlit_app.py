@@ -185,6 +185,12 @@ def get_neighborhoods():
     neighborhoods_loaded = True
     return neighborhoods
 
+def to_camel_case(text):
+    if not text:
+        return text
+    words = text.replace('_', ' ').split()
+    return ''.join(word.capitalize() for word in words)
+
 @st.cache_data(ttl = "1h", show_spinner = False)
 def get_containers(neighborhood_shape):
     coordinates = neighborhood_shape['coordinates'][0]  # Get the list of coordinates of the polygon
@@ -198,6 +204,9 @@ def get_containers(neighborhood_shape):
     response = requests.get(url_solid_waste)
     data = response.json()
     combined_results = data['records']
+    for record in combined_results:
+        tipo = record['fields'].get('tipo')
+        record['fields']['tipo_resid'] = to_camel_case(tipo)
 
     response = requests.get(url_glass)
     data = response.json()
