@@ -332,7 +332,7 @@ def locate_containers_app():
     if (selected_container == 'Residuos sólidos'):
 
         # List of waste types
-        waste_types = ['Residuos Urbanos', 'Envases Ligeros', 'Organico', 'Papel / Carton', 'Vidrio', 'Todos']
+        waste_types = ['Envases Ligeros', 'Organico', 'Papel / Carton', 'Vidrio', 'Resto']
 
         # Widget selectbox to select the waste type
         selected_waste = st.selectbox("Selecciona el tipo de residuo", waste_types)
