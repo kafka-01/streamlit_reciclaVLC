@@ -189,7 +189,7 @@ def to_camel_case(text):
     if not text:
         return text
     words = text.replace('_', ' ').split()
-    return ''.join(word.capitalize() for word in words)
+    return ' '.join(word.capitalize() for word in words)
 
 @st.cache_data(ttl = "1h", show_spinner = False)
 def get_containers(neighborhood_shape):
