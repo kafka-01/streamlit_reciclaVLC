@@ -29,7 +29,7 @@ def get_icon(label):
         "Envases Ligeros": "icon-amarillo",
         "Organico": "icon-marron",
         "Papel / Carton": "icon-azul",
-        "Residuos Urbanos": "icon-gris",
+        "Resto": "icon-gris",
         "Vidrio": "icon-verde",
         "Pilas": "icon-pilas",
         "Aceite usado": "icon-aceite",
