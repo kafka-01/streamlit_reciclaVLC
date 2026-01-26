@@ -66,10 +66,10 @@ class CustomScaleLayer(tf.keras.layers.Layer):
         self.scale = scale
 
     def call(self, inputs):
-        # Si recibe varios tensores (lista/tupla), escálalos uno a uno
+        # inputs = lista de tensores
         if isinstance(inputs, (list, tuple)):
-            return [x * self.scale for x in inputs]
-        # Si recibe un solo tensor
+            scaled = [x * self.scale for x in inputs]
+            return tf.add_n(scaled)  # los fusiona en UNO solo
         return inputs * self.scale
 
     def get_config(self):
