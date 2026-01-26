@@ -9,6 +9,8 @@ import folium
 from streamlit_folium import folium_static
 
 import tensorflow as tf
+
+from custom_layers import CustomScaleLayer
 from tensorflow.keras.models import load_model
 
 import numpy as np
@@ -65,7 +67,8 @@ def cargar_modelo():
         u.close()
         with open(model_path, 'wb') as f:
             f.write(data)
-    model = load_model(model_path)
+    model = load_model(model_path,
+                       custom_objects={"CustomScaleLayer": CustomScaleLayer})
     return model
 
 # Prepare the image for display on the web and preprocess it for the model (preproc1)
