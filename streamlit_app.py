@@ -66,25 +66,15 @@ class CustomScaleLayer(tf.keras.layers.Layer):
         self.scale = scale
 
     def call(self, inputs):
-        # Normalizamos a lista
         if isinstance(inputs, (list, tuple)):
-            # Escalamos cada tensor
             scaled = [tf.convert_to_tensor(x) * self.scale for x in inputs]
-            # Los combinamos en UNO solo
-            return tf.add_n(scaled)
-        else:
-            return tf.convert_to_tensor(inputs) * self.scale
-
-    def compute_output_shape(self, input_shape):
-        # Si entran varios, todos son iguales → devolvemos el primero
-        if isinstance(input_shape, (list, tuple)):
-            return input_shape[0]
-        return input_shape
+            return tf.add_n(scaled)   # <- 1 SOLO tensor
+        return tf.convert_to_tensor(inputs) * self.scale
 
     def get_config(self):
-        config = super().get_config()
-        config.update({"scale": self.scale})
-        return config
+        cfg = super().get_config()
+        cfg.update({"scale": self.scale})
+        return cfg
     
 # Load the model into cache at the beginning of execution
 @st.cache_resource(show_spinner = False)
@@ -95,7 +85,14 @@ def cargar_modelo():
         u.close()
         with open(model_path, 'wb') as f:
             f.write(data)
-    model = load_model(model_path)
+    model = tf.keras.models.load_model(
+        model_path,
+        compile=False,
+        custom_objects={
+            "CustomScaleLayer": CustomScaleLayer,
+            "Custom>CustomScaleLayer": CustomScaleLayer,
+        },
+    )
     return model
 
 # Prepare the image for display on the web and preprocess it for the model (preproc1)
