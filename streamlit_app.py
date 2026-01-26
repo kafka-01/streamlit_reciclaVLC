@@ -77,7 +77,7 @@ def cargar_modelo():
         u.close()
         with open(model_path, 'wb') as f:
             f.write(data)
-    model = load_model(model_path})
+    model = load_model(model_path)
     return model
 
 # Prepare the image for display on the web and preprocess it for the model (preproc1)
