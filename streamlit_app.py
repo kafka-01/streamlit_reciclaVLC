@@ -13,6 +13,8 @@ from tensorflow.keras.models import load_model
 
 import numpy as np
 
+import re
+
 # Get the absolute path of the current file
 current_path = os.path.dirname(os.path.abspath(__file__))
 
@@ -185,11 +187,16 @@ def get_neighborhoods():
     neighborhoods_loaded = True
     return neighborhoods
 
-def to_camel_case(text):
+def pretty_case(text):
     if not text:
         return text
-    words = text.replace('_', ' ').split()
-    return ' '.join(word.capitalize() for word in words)
+
+    return re.sub(
+        r'[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+',
+        lambda m: m.group(0).lower().capitalize(),
+        text
+    )
+
 
 @st.cache_data(ttl = "1h", show_spinner = False)
 def get_containers(neighborhood_shape):
@@ -206,7 +213,7 @@ def get_containers(neighborhood_shape):
     combined_results = data['records']
     for record in combined_results:
         tipo = record['fields'].get('tipo')
-        record['fields']['tipo_resid'] = to_camel_case(tipo)
+        record['fields']['tipo_resid'] = pretty_case(tipo)
 
     response = requests.get(url_glass)
     data = response.json()
