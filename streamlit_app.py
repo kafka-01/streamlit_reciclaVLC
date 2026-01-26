@@ -66,10 +66,21 @@ class CustomScaleLayer(tf.keras.layers.Layer):
         self.scale = scale
 
     def call(self, inputs):
-        if isinstance(inputs, (list, tuple)):
-            scaled = [tf.convert_to_tensor(x) * self.scale for x in inputs]
-            return tf.add_n(scaled)   # <- 1 SOLO tensor
-        return tf.convert_to_tensor(inputs) * self.scale
+        # Fuerza a lista
+        if not isinstance(inputs, (list, tuple)):
+            return inputs * self.scale
+
+        # Escala cada rama
+        scaled = [tf.cast(x, tf.float32) * self.scale for x in inputs]
+
+        # Fusión: UN SOLO tensor
+        return tf.add_n(scaled)
+
+    def compute_output_shape(self, input_shape):
+        # Devuelve la shape de una sola rama
+        if isinstance(input_shape, (list, tuple)):
+            return input_shape[0]
+        return input_shape
 
     def get_config(self):
         cfg = super().get_config()
@@ -85,14 +96,16 @@ def cargar_modelo():
         u.close()
         with open(model_path, 'wb') as f:
             f.write(data)
+    
     model = tf.keras.models.load_model(
         model_path,
         compile=False,
         custom_objects={
             "CustomScaleLayer": CustomScaleLayer,
-            "Custom>CustomScaleLayer": CustomScaleLayer,
-        },
+            "Custom>CustomScaleLayer": CustomScaleLayer
+        }
     )
+
     return model
 
 # Prepare the image for display on the web and preprocess it for the model (preproc1)
