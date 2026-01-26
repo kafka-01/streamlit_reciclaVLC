@@ -378,8 +378,8 @@ def locate_containers_app():
                 if not coords:
                     continue
 
-            if container_type not in containers:
-                containers[container_type] = []
+                if container_type not in containers:
+                    containers[container_type] = []
 
                 containers[container_type].append(coords)
                 counter += 1
