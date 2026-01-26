@@ -367,16 +367,21 @@ def locate_containers_app():
         counter = 0
     
         for c in containers_json:
-            container_type = c["fields"]["tipo_resid"]
-            if (container_type == selection or selection == 'Todos'):
-                coords = c["fields"]["geo_shape"]
-                # Check if the key exists in the dictionary
-                if container_type not in containers:
-                    containers[container_type] = []
-    
-                # Add the coordinates to the corresponding list
+            fields = c.get("fields", {})
+            container_type = fields.get("tipo_resid")
+
+            if not container_type:
+                continue
+
+            if container_type == selection or selection == 'Todos':
+                coords = fields.get("geo_shape")
+                if not coords:
+                    continue
+
+            if container_type not in containers:
+                containers[container_type] = []
+
                 containers[container_type].append(coords)
-                
                 counter += 1
     
         valencia_map = generar_mapa(center, zoom, containers)
