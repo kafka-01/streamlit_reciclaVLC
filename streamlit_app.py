@@ -201,31 +201,53 @@ def identify_waste_app():
                 st.image(Image.open(icon), width=50)  # Display the icon as an image
                 st.markdown(f"**{predicted_class}**\n{prob_text}")  # Display the safety text with Markdown
 
-
 # CONTAINER LOCATION =================================================================================
+
+# =====================================================================================
+# CONTAINER LOCATION (DESACTIVADO TEMPORALMENTE)
+# =====================================================================================
+
+"""
+# -------------------------------------------------------------------------------------
+# OpenData Valencia temporalmente desactivado
+#
+# Motivos:
+# - Inestabilidad de la API OpenData
+# - Cambios frecuentes en datasets
+# - Problemas de disponibilidad
+# - Riesgo de timeouts en Streamlit
+#
+# Se mantiene únicamente la funcionalidad de clasificación de residuos con IA.
+# -------------------------------------------------------------------------------------
 
 @st.cache_data(ttl = "1h", show_spinner = False)
 def get_neighborhoods():
     url = "https://valencia.opendatasoft.com/api/records/1.0/search/?dataset=barris-barrios&q=&rows=-1"
-    response = requests.get(url)
+    response = requests.get(url, timeout=10)
+    response.raise_for_status()
+
     data = response.json()
 
     neighborhoods_json = data["records"]
 
-    # Sort the records by the 'nombre' field
-    neighborhoods_json = sorted(neighborhoods_json, key=lambda x: x['fields']['nombre'])
+    neighborhoods_json = sorted(
+        neighborhoods_json,
+        key=lambda x: x['fields']['nombre']
+    )
 
     neighborhoods = []
 
     for neighborhood in neighborhoods_json:
         neighborhoods.append({
-            "name": ' '.join(word.capitalize() for word in neighborhood["fields"]["nombre"].split()),
+            "name": ' '.join(
+                word.capitalize()
+                for word in neighborhood["fields"]["nombre"].split()
+            ),
             "geo_shape": neighborhood["fields"]["geo_shape"]
         })
 
-    
-    neighborhoods_loaded = True
     return neighborhoods
+
 
 def pretty_case(text):
     if not text:
@@ -240,95 +262,180 @@ def pretty_case(text):
 
 @st.cache_data(ttl = "1h", show_spinner = False)
 def get_containers(neighborhood_shape):
-    coordinates = neighborhood_shape['coordinates'][0]  # Get the list of coordinates of the polygon
 
-    # Format the coordinates of the polygon
-    coordinates_str = '%2C+'.join([f'({coord[1]}%2C+{coord[0]})' for coord in coordinates])
+    coordinates = neighborhood_shape['coordinates'][0]
 
-    url_solid_waste = f"https://valencia.opendatasoft.com/api/records/1.0/search/?dataset=contenidors-residus-solids-contenidores-residuos-solidos&q=&rows=-1&geofilter.polygon=" + coordinates_str
-    url_glass = f"https://valencia.opendatasoft.com/api/records/1.0/search/?dataset=contenidors-vidre-contenedores-vidrio&q=&rows=-1&geofilter.polygon=" + coordinates_str
+    coordinates_str = '%2C+'.join([
+        f'({coord[1]}%2C+{coord[0]})'
+        for coord in coordinates
+    ])
 
-    response = requests.get(url_solid_waste)
+    url_solid_waste = (
+        "https://valencia.opendatasoft.com/api/records/1.0/search/"
+        "?dataset=contenidors-residus-solids-contenedores-residuos-solidos"
+        "&q=&rows=-1&geofilter.polygon="
+        + coordinates_str
+    )
+
+    url_glass = (
+        "https://valencia.opendatasoft.com/api/records/1.0/search/"
+        "?dataset=contenidors-vidre-contenedores-vidrio"
+        "&q=&rows=-1&geofilter.polygon="
+        + coordinates_str
+    )
+
+    response = requests.get(url_solid_waste, timeout=10)
+    response.raise_for_status()
+
     data = response.json()
+
     combined_results = data['records']
+
     for record in combined_results:
         tipo = record['fields'].get('tipo')
         record['fields']['tipo_resid'] = pretty_case(tipo)
 
-    response = requests.get(url_glass)
+    response = requests.get(url_glass, timeout=10)
+    response.raise_for_status()
+
     data = response.json()
+
     glass_records = data['records']
+
     for record in glass_records:
         record['fields']['tipo_resid'] = 'Vidrio'
+
     combined_results += glass_records
-    
+
     return combined_results
+
 
 @st.cache_data(ttl = "1h", show_spinner = False)
 def get_containers2(neighborhood_shape):
-    coordinates = neighborhood_shape['coordinates'][0]  # Get the list of coordinates of the polygon
 
-    # Format the coordinates of the polygon
-    coordinates_str = '%2C+'.join([f'({coord[1]}%2C+{coord[0]})' for coord in coordinates])
+    coordinates = neighborhood_shape['coordinates'][0]
 
-    url_batteries = f"https://valencia.opendatasoft.com/api/records/1.0/search/?dataset=localitzacio-contenidors-piles-localizacion-contenedores-pilas&q=&rows=-1&geofilter.polygon=" + coordinates_str
-    url_used_oil = f"https://valencia.opendatasoft.com/api/records/1.0/search/?dataset=contenidors-oli-usat-contenedores-aceite-usado&q=&rows=-1&geofilter.polygon=" + coordinates_str
-    url_mobile_ecoparks = f"https://valencia.opendatasoft.com/api/records/1.0/search/?dataset=ecoparcs-mobils-ecoparques-moviles&q=&rows=-1&geofilter.polygon=" + coordinates_str
-    url_clothes = f"https://valencia.opendatasoft.com/api/records/1.0/search/?dataset=contenidors-de-roba-contenedores-de-ropa&q=&rows=-1&geofilter.polygon=" + coordinates_str
+    coordinates_str = '%2C+'.join([
+        f'({coord[1]}%2C+{coord[0]})'
+        for coord in coordinates
+    ])
 
-    response = requests.get(url_batteries)
+    url_batteries = (
+        "https://valencia.opendatasoft.com/api/records/1.0/search/"
+        "?dataset=localitzacio-contenidors-piles-localizacion-contenedores-pilas"
+        "&q=&rows=-1&geofilter.polygon="
+        + coordinates_str
+    )
+
+    url_used_oil = (
+        "https://valencia.opendatasoft.com/api/records/1.0/search/"
+        "?dataset=contenidors-oli-usat-contenedores-aceite-usado"
+        "&q=&rows=-1&geofilter.polygon="
+        + coordinates_str
+    )
+
+    url_mobile_ecoparks = (
+        "https://valencia.opendatasoft.com/api/records/1.0/search/"
+        "?dataset=ecoparcs-mobils-ecoparques-moviles"
+        "&q=&rows=-1&geofilter.polygon="
+        + coordinates_str
+    )
+
+    url_clothes = (
+        "https://valencia.opendatasoft.com/api/records/1.0/search/"
+        "?dataset=contenidors-de-roba-contenedores-de-ropa"
+        "&q=&rows=-1&geofilter.polygon="
+        + coordinates_str
+    )
+
+    response = requests.get(url_batteries, timeout=10)
+    response.raise_for_status()
+
     data = response.json()
+
     combined_results = data['records']
+
     for record in combined_results:
         record['fields']['tipo_resid'] = 'Pilas'
 
-    response = requests.get(url_used_oil)
+    response = requests.get(url_used_oil, timeout=10)
+    response.raise_for_status()
+
     data = response.json()
+
     used_oil_records = data['records']
+
     for record in used_oil_records:
         record['fields']['tipo_resid'] = 'Aceite usado'
+
     combined_results += used_oil_records
 
-    response = requests.get(url_mobile_ecoparks)
+    response = requests.get(url_mobile_ecoparks, timeout=10)
+    response.raise_for_status()
+
     data = response.json()
+
     mobile_ecoparks_records = data['records']
+
     for record in mobile_ecoparks_records:
         record['fields']['tipo_resid'] = 'Ecoparque móvil'
+
     combined_results += mobile_ecoparks_records
 
-    response = requests.get(url_clothes)
+    response = requests.get(url_clothes, timeout=10)
+    response.raise_for_status()
+
     data = response.json()
+
     clothes_records = data['records']
+
     for record in clothes_records:
         record['fields']['tipo_resid'] = 'Ropa'
+
     combined_results += clothes_records
 
     return combined_results
 
+
 @st.cache_resource(show_spinner = False)
 def generar_mapa(center, zoom, containers):
-    
-    feature_group = folium.FeatureGroup(name="Markers")  # Create a FeatureGroup for markers        
-        
-    # Iterate over each key and add markers
+
+    feature_group = folium.FeatureGroup(name="Markers")
+
     for container_type, coordinates in containers.items():
+
         for coords in coordinates:
-            # Get the coordinates of the point
+
             lat = coords["coordinates"][1]
             lon = coords["coordinates"][0]
 
-            # Create a marker with a Folium compatible icon (e.g., "leaf") and the corresponding color
-            icon = folium.CustomIcon(icon_image=get_icon(container_type), icon_size=(42, 36))
-            marker = folium.Marker(location=[lat, lon], popup=container_type.replace(" / ", "/"), icon=icon)
+            icon = folium.CustomIcon(
+                icon_image=get_icon(container_type),
+                icon_size=(42, 36)
+            )
 
-            # Add the marker to the map
-            feature_group.add_child(marker)  # Add the marker to the feature group
-            
-    valencia_map = folium.Map(location=center, zoom_start=zoom, width=500, height=700)
+            marker = folium.Marker(
+                location=[lat, lon],
+                popup=container_type.replace(" / ", "/"),
+                icon=icon
+            )
+
+            feature_group.add_child(marker)
+
+    valencia_map = folium.Map(
+        location=center,
+        zoom_start=zoom,
+        width=500,
+        height=700
+    )
+
     valencia_map.add_child(feature_group)
+
     return valencia_map
 
+
 def calculate_center_zoom(neighborhood_shape):
+
     coords_neighborhood = neighborhood_shape["coordinates"][0]
 
     latitudes = [coord[1] for coord in coords_neighborhood]
@@ -336,105 +443,45 @@ def calculate_center_zoom(neighborhood_shape):
 
     min_lat = min(latitudes)
     max_lat = max(latitudes)
+
     min_lon = min(longitudes)
     max_lon = max(longitudes)
 
     center_lat = (min_lat + max_lat) / 2
     center_lon = (min_lon + max_lon) / 2
 
-    zoom = 15  # Initial zoom level
+    zoom = 15
 
     lat_extent = max_lat - min_lat
     lon_extent = max_lon - min_lon
 
     if lat_extent != 0 and lon_extent != 0:
-        max_zoom = 18  # Maximum allowed zoom (adjust according to your needs)
-        width_pixels = 500  # Map width in pixels (adjust according to your needs)
-        deg_per_pixel = (lon_extent / width_pixels)  # Degrees of longitude per pixel
-        zoom = math.floor(math.log((360 * math.cos(math.radians(center_lat))) / deg_per_pixel, 2))
+
+        max_zoom = 18
+        width_pixels = 500
+
+        deg_per_pixel = (lon_extent / width_pixels)
+
+        zoom = math.floor(
+            math.log(
+                (360 * math.cos(math.radians(center_lat))) / deg_per_pixel,
+                2
+            )
+        )
+
         zoom = min(max_zoom, zoom)
 
     return (center_lat, center_lon), zoom - 2
-        
+
+
 def locate_containers_app():
-    
-    # Form
 
-    neighborhoods = get_neighborhoods()
-    
-    neighborhoods_list = [nh["name"] for nh in neighborhoods]
+    st.warning(
+        "La funcionalidad de localización de contenedores "
+        "está temporalmente desactivada."
+    )
 
-    selected_neighborhood = st.selectbox('Selecciona tu barrio', neighborhoods_list)
-    
-    # Get the shape of the selected neighborhood
-    nh_index = neighborhoods_list.index(selected_neighborhood)
-    nh_shape = neighborhoods[nh_index]['geo_shape']
-
-    # List of container types
-    container_types = ['Residuos sólidos', 'Aceite usado', 'Pilas', 'Ecoparque móvil', 'Ropa']
-
-    # Widget selectbox to select the container type
-    selected_container = st.selectbox("Selecciona el tipo de contenedor", container_types)
-
-    if (selected_container == 'Residuos sólidos'):
-
-        # List of waste types
-        waste_types = ['Envases Ligeros', 'Organico', 'Papel / Carton', 'Vidrio', 'Resto']
-
-        # Widget selectbox to select the waste type
-        selected_waste = st.selectbox("Selecciona el tipo de residuo", waste_types)
-
-    else:
-
-        selected_waste = ''
-
-    with st.spinner("Refreshing Map..."):
-        
-        # Proccess
-    
-        selected_neighborhood = neighborhoods[nh_index]['name']
-        nh_shape = neighborhoods[nh_index]['geo_shape']
-        
-        # Show map of Valencia
-    
-        # Calculate the optimal central location and zoom level
-        center, zoom = calculate_center_zoom(nh_shape)
-    
-        containers = {}        
-    
-        if (selected_container == 'Residuos sólidos'):            
-            containers1_json = get_containers(nh_shape)
-            containers_json = containers1_json
-            selection = selected_waste
-        else:
-            containers2_json = get_containers2(nh_shape)
-            containers_json = containers2_json
-            selection = selected_container
-            
-        counter = 0
-    
-        for c in containers_json:
-            fields = c.get("fields", {})
-            container_type = fields.get("tipo_resid")
-
-            if not container_type:
-                continue
-
-            if container_type == selection or selection == 'Todos':
-                coords = fields.get("geo_shape")
-                if not coords:
-                    continue
-
-                if container_type not in containers:
-                    containers[container_type] = []
-
-                containers[container_type].append(coords)
-                counter += 1
-    
-        valencia_map = generar_mapa(center, zoom, containers)
-        folium_static(valencia_map)
-    st.write(f"Contenedores encontrados: {counter}")
-
+"""
 # PAGE ======================================================================================================    
 
 # Logo
@@ -484,11 +531,18 @@ Utiliza nuestra herramienta interactiva para encontrar los contenedores más cer
 """
 st.markdown(intro_text)
 
+# =====================================================================================
+# LOCALIZACIÓN DE CONTENEDORES DESACTIVADA
+# =====================================================================================
+
+"""
 # locate containers
-with st.container():    
-        
-    st.image(img_reciclaVLC_app1, width=64)     
+with st.container():
+
+    st.image(img_reciclaVLC_app1, width=64)
+
     locate_containers_app()
+"""
     
 # Identify waste
 identify_text = '''
