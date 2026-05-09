@@ -56,36 +56,6 @@ labels = ['Papel / Carton', 'Vidrio', 'Ecoparque móvil', 'Papel / Carton', 'Env
 # Secret
 my_email = st.secrets['email']
 model_weight_file = st.secrets['model_url']
-
-import tensorflow as tf
-
-@tf.keras.utils.register_keras_serializable(package="Custom")
-class CustomScaleLayer(tf.keras.layers.Layer):
-    def __init__(self, scale=1.0, **kwargs):
-        super().__init__(**kwargs)
-        self.scale = scale
-
-    def call(self, inputs):
-        # Fuerza a lista
-        if not isinstance(inputs, (list, tuple)):
-            return inputs * self.scale
-
-        # Escala cada rama
-        scaled = [tf.cast(x, tf.float32) * self.scale for x in inputs]
-
-        # Fusión: UN SOLO tensor
-        return tf.add_n(scaled)
-
-    def compute_output_shape(self, input_shape):
-        # Devuelve la shape de una sola rama
-        if isinstance(input_shape, (list, tuple)):
-            return input_shape[0]
-        return input_shape
-
-    def get_config(self):
-        cfg = super().get_config()
-        cfg.update({"scale": self.scale})
-        return cfg
     
 # Load the model into cache at the beginning of execution
 @st.cache_resource(show_spinner = False)
@@ -98,12 +68,8 @@ def cargar_modelo():
             f.write(data)
     
     model = tf.keras.models.load_model(
-        model_path,
-        compile=False,
-        custom_objects={
-            "CustomScaleLayer": CustomScaleLayer,
-            "Custom>CustomScaleLayer": CustomScaleLayer
-        }
+    model_path,
+    compile=False
     )
 
     return model
