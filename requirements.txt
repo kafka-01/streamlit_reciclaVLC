@@ -2,3 +2,5 @@ streamlit
 folium
 streamlit_folium
 tensorflow==2.12.0
+keras==2.12.0
+numpy<2
